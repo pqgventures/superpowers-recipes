@@ -1,0 +1,10 @@
+{
+  "name": "superpowers-recipes",
+  "description": "Ready-made agent skills that run real jobs through Superpowers (superpowers.tools), the pay-per-call toolbox for AI agents: Brazilian company checks, competitor ad watch, video ads, lead lists and more.",
+  "version": "0.1.0",
+  "author": { "name": "PQG Ventures", "url": "https://superpowers.tools" },
+  "homepage": "https://superpowers.tools/recipes",
+  "repository": "https://github.com/pqgventures/superpowers-recipes",
+  "license": "MIT",
+  "keywords": ["ai-agents", "mcp", "agent-skills", "claude-code", "codex", "brazil", "marketing"]
+}
