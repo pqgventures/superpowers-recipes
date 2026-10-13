@@ -1,7 +1,17 @@
 {
   "name": "superpowers-recipes",
-  "owner": { "name": "PQG Ventures", "url": "https://superpowers.tools" },
+  "owner": {
+    "name": "PQG Ventures",
+    "url": "https://superpowers.tools"
+  },
   "plugins": [
-    { "name": "superpowers-recipes", "source": "./", "description": "Ready-made agent skills that run real jobs through Superpowers (superpowers.tools)." }
-  ]
+    {
+      "name": "superpowers-recipes",
+      "source": "./",
+      "description": "Ready-made agent skills that run real jobs through Superpowers (superpowers.tools)."
+    }
+  ],
+  "metadata": {
+    "description": "Agent skills that run real jobs through Superpowers (superpowers.tools): Brazilian company checks, competitor ad watch, video ads, lead lists and more."
+  }
 }
