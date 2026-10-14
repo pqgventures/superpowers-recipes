@@ -13,7 +13,7 @@ export const recipe = {
     days: { title: "Days back", description: "How recent a story must be, 1 to 30", default: "7" },
     stories: { title: "How many stories", description: "3 to 12", default: "10" },
   },
-  uses: { "search1api.news": 5, "exa.search": 12, "firecrawl.scrape": 12 },
+  uses: { "search1api.news": 5, "exa.search": 12, "firecrawl.scrape": 24 },
   share: { review: false },
 };
 
@@ -76,12 +76,25 @@ export function opening(markdown, headline) {
   const out = [];
   for (const raw of lines.slice(Math.max(0, start + 1))) {
     if (/^[!\[#\-*|>]/.test(raw) || /^\d+\.\s/.test(raw)) continue;
-    const l = raw.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[*_]{1,2}/g, "").replace(/\s+/g, " ").trim();
+    const l = raw.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[*_]{1,2}/g, "").replace(/\s+/g, " ").trim()
+      .replace(/[^.!?]*\b(IE ?11|Internet Explorer|another browser|supported browser|enable JavaScript)\b[^.!?]*[.!?]\s*/gi, "").trim();
     if (l.length < 80 || !/[.!?”"]$/.test(l) || /(\.\.\.|…)$/.test(l) || /cookie|subscribe|sign up|newsletter|advertis|all rights reserved/i.test(l) || /^(in this (photo )?illustration|photo:|image:|credit:|getty)/i.test(l) || /^(get|sign up|join|subscribe|download|follow us|read more|click)\b|without having to browse/i.test(l)) continue;
     out.push(l);
     if (out.join(" ").length > 150) break;
   }
   return clip(out.join(" "), 320);
+}
+
+// The article's lead picture: the first photo near the headline (logos, icons, avatars and tracking pixels skipped).
+export function leadImage(markdown, headline) {
+  const md = String(markdown || "");
+  const key = String(headline || "").toLowerCase().slice(0, 30);
+  const at = key ? md.toLowerCase().indexOf(key) : -1;
+  const pics = [...md.matchAll(/!\[[^\]]*\]\((https?:\/\/[^)\s]+)/g)].map((m) => ({ url: m[1], i: m.index ?? 0 }))
+    .filter((p) => /\.(jpe?g|webp|png|avif)(\?|$)/i.test(p.url) && !/logo|icon|avatar|sprite|close|placeholder|pixel|badge|author|headshot|favicon|1x1|blank|spacer|[/_-]ads?[/_-]/i.test(p.url));
+  if (!pics.length) return "";
+  const near = at >= 0 ? pics.filter((p) => Math.abs(p.i - at) < 6000).sort((a, b) => Math.abs(a.i - at) - Math.abs(b.i - at))[0] : null;
+  return (near || pics[0]).url;
 }
 
 export async function run(sp, { niche, topics, days, stories }) {
@@ -92,9 +105,10 @@ export async function run(sp, { niche, topics, days, stories }) {
   const since = new Date(Date.now() - nd * 864e5).toISOString().slice(0, 10);
   const range = nd <= 1 ? "day" : nd <= 7 ? "week" : "month";
   const seen = new Set(), articles = [];
-  let fetched = 0, dropped = 0;
+  let fetched = 0, dropped = 0, failed = 0;
   for (const [i, q] of list.entries()) {
     const r = await sp.run("news-" + (i + 1), "search1api.news", { query: q, time_range: range, max_results: 20 }).catch(() => null);
+    if (!r) failed++;
     for (const x of r?.results || []) {
       fetched++;
       const { headline, outlet } = splitTitle(x.title);
@@ -111,19 +125,25 @@ export async function run(sp, { niche, topics, days, stories }) {
   // Names repeated across the week's headlines (capitalized, in 3+ articles, not a niche or topic word).
   const caps = new Set(articles.flatMap((a) => (a.headline.match(/\b[A-Z][A-Za-z]{2,}/g) || []).map((x) => x.toLowerCase())));
   const hot = new Set([...df].filter(([w, n]) => n >= 3 && caps.has(w) && !skip.has(w) && !STOP.has(w)).map(([w]) => w));
+  if (failed === list.length) throw new Error("The news search is not answering right now, so there is nothing to show; failed searches are not charged. Try again in a few minutes.");
   if (!articles.length) throw new Error("No news found for these topics in the last " + nd + " days. Try broader topics.");
   const groups = cluster(articles, skip, hot).slice(0, want);
   const items = [];
   for (const [i, g] of groups.entries()) {
     const r = await sp.run("find-" + (i + 1), "exa.search", { query: g.lead.headline, num: 3 }).catch(() => null);
     const hw = words(g.lead.headline);
-    const hit = (r?.results || []).find((x) => x.url && !/news\.google\./.test(x.url) && same(words(x.title), hw));
-    if (hit && WIRES.test(hit.url)) g.wire = true;
-    g.url = hit?.url || g.lead.url;
-    g.lede = "";
-    if (hit) {
-      const page = await sp.run("read-" + (i + 1), "firecrawl.scrape", { url: hit.url }).catch(() => null);
-      g.lede = opening(page?.markdown, hit.title.replace(/\s+[|–-]\s+[^|–-]+$/, "")) || opening(page?.markdown, g.lead.headline);
+    // Read the first matching article; when that site blocks reading (no opening lines), try the next outlet's copy.
+    const hits = (r?.results || []).filter((x) => x.url && !/news\.google\./.test(x.url) && same(words(x.title), hw)).slice(0, 2);
+    g.url = hits[0]?.url || g.lead.url; g.lede = ""; g.image = "";
+    if (hits.some((h) => WIRES.test(h.url))) g.wire = true;
+    for (const [k, hit] of hits.entries()) {
+      const page = await sp.run("read-" + (i + 1) + (k ? "b" : ""), "firecrawl.scrape", { url: hit.url }).catch(() => null);
+      const t = hit.title.replace(/\s+[|–-]\s+[^|–-]+$/, "");
+      const lede = opening(page?.markdown, t) || opening(page?.markdown, g.lead.headline);
+      if (!lede && k + 1 < hits.length) continue;
+      g.url = hit.url; g.lede = lede;
+      g.image = leadImage(page?.markdown, t) || leadImage(page?.markdown, g.lead.headline);
+      break;
     }
   }
   const multi = groups.filter((g) => g.outlets.length > 1).length;
@@ -135,9 +155,9 @@ export async function run(sp, { niche, topics, days, stories }) {
     const cover = o.length > 2 ? o.length + " outlets: " + o.slice(0, 3).join(", ") + (o.length > 3 ? " +" + (o.length - 3) : "") : o.join(" and ") || "One outlet";
     const tag = g.wire ? "Press release" : g.investor ? "Investor news" : "";
     // A link item: the share page shows the headline as a link, the opening lines under it, then outlets and date.
-    items.push({ label: g.lead.headline, url: g.url, ...(g.lede ? { text: g.lede } : {}), caption: [tag, cover, when(g.first)].filter(Boolean).join(" · ") });
+    items.push({ label: g.lead.headline, url: g.url, ...(g.lede ? { text: g.lede } : {}), ...(g.image ? { image: g.image } : {}), caption: [tag, cover, when(g.first)].filter(Boolean).join(" · ") });
   }
-  items.push({ label: "How to use it", text: "Pick the 5 to 8 stories your readers would forward. Open each link before you write, say in one line why it matters to them, and keep the outlet name next to the link. Outlet counts come from one news search, so they show which stories spread, not exact totals." });
+  // How to write the issue from these stories is in the SKILL.md the agent reads; the share page stays for readers.
   return { title: "This week in " + niche + ": " + groups.length + " stories", items };
 }
 

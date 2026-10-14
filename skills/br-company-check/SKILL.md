@@ -1,28 +1,29 @@
 ---
 name: br-company-check
-description: Check a Brazilian supplier or client from its CNPJ before signing - official record and partners, public-company status, federal debarment registers (CEIS, CNEP), OFAC/UN/UK/EU sanctions for the company and its partners, and the official labor-debt certificate (CNDT) as a PDF - and give the user one link with a verdict to send to whoever approves the deal. Use for supplier or client onboarding, KYB, credit or partnership decisions, or when the user asks "is this company OK?".
+description: Check a Brazilian supplier or client from its CNPJ, website or name before signing - official record and partners, public-company status, federal debarment registers (CEIS, CNEP), OFAC/UN/UK/EU sanctions for the company and its partners, and the official labor-debt certificate (CNDT) as a PDF - and give the user one link with a verdict to send to whoever approves the deal. Use for supplier or client onboarding, KYB, credit or partnership decisions, or when the user asks "is this company OK?".
 ---
 
 # Check a supplier or client before you sign
 
-A Superpowers recipe. One CNPJ in, one link out: a verdict (OK to proceed, proceed with care, or stop and review) with the reasons, the company's official record and partners, and the official labor-debt certificate attached as a PDF. Typical cost: about $0.02.
+A Superpowers recipe. One company in (CNPJ, website or name), one link out: a verdict (OK to proceed, proceed with care, or stop and review) with the reasons, the company's official record and partners, and the official labor-debt certificate attached as a PDF. Typical cost: about $0.02.
 
 Needs a Superpowers API key. If you don't have one yet: https://superpowers.tools/skill.md?src=github
 
 ## Input
 
-- **cnpj** (required), with or without punctuation.
+- **cnpj** (required): the CNPJ with or without punctuation, the company's website (natura.com.br) or its name (Natura Cosméticos). A CNPJ is the most precise; a .br website is almost as good (registro.br names the domain owner); a common name may match the wrong company, so the result says how the CNPJ was found and flags anything short of high confidence.
 - **lang** (optional): pt writes the result in Portuguese. Use it when your user writes in Portuguese; the link usually goes to a Brazilian approver.
 
 ## Run the script
 
     curl -s "https://superpowers.tools/recipes/br-company-check/run.mjs" -o sp-company-check.mjs
-    node sp-company-check.mjs --cnpj "33.000.167/0001-01"            # add --lang pt for Portuguese
+    node sp-company-check.mjs --cnpj "33.000.167/0001-01"            # or --cnpj natura.com.br; add --lang pt for Portuguese
 
 It prints JSON with share_url (the page to forward), charge_usd and each step's raw output.
 
 ## Step by step
 
+0. If the input is not a CNPJ: POST https://superpowers.tools/v1/run {"tool": "cnpjfind.find", "input": {"query": <website or name>}} and use its cnpj. If it returns none, ask the user for the website or the CNPJ. If confidence is not high, show the other candidates and treat the check as "proceed with care" until the user confirms the company.
 1. POST https://superpowers.tools/v1/run {"tool": "dossier.br-company", "input": {"cnpj": <cnpj>}}: Receita record, partners, CVM status, CEIS/CNEP and sanctions screening in one call.
 2. POST https://superpowers.tools/v1/run {"tool": "operator.cndt", "input": {"cnpj": <cnpj>}}: the official CNDT (TST) with status, validity, listed cases and a PDF link. If it fails, continue without it and say so.
 3. Copy the PDF so the link lasts: POST https://superpowers.tools/v1/files/from-url {"url": <pdf.url>, "filename": "cndt-<cnpj>.pdf"}.

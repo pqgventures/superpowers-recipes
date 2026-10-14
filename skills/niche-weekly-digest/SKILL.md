@@ -26,7 +26,7 @@ Each request returns within about 30 seconds (the whole run takes about a minute
 
 Run it once per issue: pick the idempotency_key before the first request and reuse it for every resend, even after a timeout or an empty answer; never pick a new key for the same run, never download or run a script for this recipe, and never mix in your own searches. Keep the API key in the SUPERPOWERS_API_KEY environment variable; never write it into a file.
 
-The finished answer has share_id, share_url, charge_usd and steps. Do not build your answer from the steps. Read the result with GET https://superpowers.tools/v1/shares/<share_id> (same Authorization header): its items are a summary, one item per story (label: the headline; url: the article link; text: the article's opening lines, when found; caption: the outlets that covered it and the date), and a note on how to use it.
+The finished answer has share_id, share_url, charge_usd and steps. Do not build your answer from the steps. Read the result with GET https://superpowers.tools/v1/shares/<share_id> (same Authorization header): its items are a summary, one item per story (label: the headline; url: the article link; text: the article's opening lines, when found; caption: the outlets that covered it and the date; image: the article's lead picture, when found), and a note on how to use it.
 
 ## Doing it step by step
 
@@ -35,7 +35,7 @@ Only when the request above answers an error other than running or 402 (for exam
 1. Each topic: `search1api.news` with {"query": "<topic>", "time_range": "week", "max_results": 20}. Titles end with " - <outlet>". Leave out listicles, press-release wires and price pages.
 2. Group articles about the same story and rank stories by the number of different outlets.
 3. Each top story: `exa.search` with {"query": "<headline>", "num": 3} and keep the first result that is the same article (not a news.google link).
-4. Publish: POST https://superpowers.tools/v1/shares {"title": "This week in <niche>: <N> stories", "recipe": "niche-weekly-digest", "items": [a summary, one item per story {"label": "<headline>", "url": "<article link>", "text": "<opening lines>", "caption": "<outlets · date>"}]}.
+4. Publish: POST https://superpowers.tools/v1/shares {"title": "This week in <niche>: <N> stories", "recipe": "niche-weekly-digest", "items": [a summary, one item per story {"label": "<headline>", "url": "<article link>", "text": "<opening lines>", "image": "<lead picture URL, if any>", "caption": "<outlets · date>"}]}.
 
 ## After the run: write the newsletter
 
