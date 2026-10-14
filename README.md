@@ -85,8 +85,8 @@ Costs are what a typical run charged. Each "example" link shows a real run with 
 
 | Recipe | Typical cost | Real run |
 |---|---|---|
-| [Who ranks for your keyword](skills/serp-competitor-snapshot/SKILL.md) | under 1¢ per run, charged to the user's Superpowers balance | [example](https://superpowers.tools/recipes/serp-competitor-snapshot) |
-| [Find local leads with phone numbers](skills/local-leads/SKILL.md) | under 1¢ per run without emails, about 5¢ more per business with emails, charged to the user's Superpowers balance | [example](https://superpowers.tools/recipes/local-leads) |
+| [Who ranks for your keyword](skills/serp-competitor-snapshot/SKILL.md) | under $0.01 | [example](https://superpowers.tools/recipes/serp-competitor-snapshot) |
+| [Find local leads with phone numbers](skills/local-leads/SKILL.md) | under $0.01; about $0.05 more per business with emails | [example](https://superpowers.tools/recipes/local-leads) |
 
 ## How recipes are kept honest
 
